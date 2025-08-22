@@ -1,5 +1,4 @@
-# backend/Dockerfile
-FROM php:8.2-fpm
+FROM php:8.2-cli
 
 WORKDIR /var/www
 
@@ -18,8 +17,15 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 COPY . .
 
-RUN composer install
+RUN composer install --no-dev --optimize-autoloader
 
-EXPOSE 9000
+# Generate application key if not exists
+RUN php artisan key:generate || true
 
-CMD ["php-fpm"]
+# Run database migrations (optional, comment out if using external DB)
+RUN php artisan migrate --force
+
+EXPOSE 8000
+
+# Use PHP's built-in server
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
