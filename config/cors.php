@@ -19,8 +19,11 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
-
+    'allowed_origins' => [
+        'https://todo-app-frontend-delta-nine.vercel.app',
+        'http://localhost:8080', // For local development
+        'http://localhost:3000', // For local development
+    ],
     'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
