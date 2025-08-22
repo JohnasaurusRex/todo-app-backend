@@ -23,7 +23,7 @@ RUN composer install --no-dev --optimize-autoloader
 RUN php artisan key:generate || true
 
 # Run database migrations (optional, comment out if using external DB)
-RUN php artisan migrate --force
+# RUN php artisan migrate --force
 
 EXPOSE 8000
 
