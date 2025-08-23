@@ -1,0 +1,294 @@
+name: Deploy Full Stack Application to EC2
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          set -e
+
+          echo "🚀 Starting deployment..."
+
+          # Navigate to deployment directory
+          cd /var/www/todo-app
+
+          # Stop existing containers
+          echo "📦 Stopping existing containers..."
+          docker-compose down || true
+
+          # Pull latest backend code
+          echo "📥 Pulling latest backend code..."
+          if [ -d "backend" ]; then
+            cd backend
+            git pull origin main
+            cd ..
+          else
+            git clone https://github.com/JohnasaurusRex/todo-app-backend.git backend
+          fi
+
+          # Pull latest frontend code
+          echo "📥 Pulling latest frontend code..."
+          if [ -d "frontend" ]; then
+            cd frontend
+            git pull origin main
+            cd ..
+          else
+            git clone https://github.com/JohnasaurusRex/todo-app-frontend.git frontend
+          fi
+
+          # Create necessary directories
+          mkdir -p nginx mysql/init
+
+          # Create environment file if it doesn't exist
+          if [ ! -f .env ]; then
+            echo "🔧 Creating environment file..."
+            cat > .env << EOF
+          APP_NAME="Task Manager Pro"
+          APP_ENV=production
+          APP_KEY=${{ secrets.APP_KEY }}
+          APP_DEBUG=false
+          APP_URL=http://${{ secrets.EC2_HOST }}:8000
+
+          DB_CONNECTION=mysql
+          DB_HOST=mysql
+          DB_PORT=3306
+          DB_DATABASE=${{ secrets.DB_DATABASE }}
+          DB_USERNAME=${{ secrets.DB_USERNAME }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_ROOT_PASSWORD=${{ secrets.DB_ROOT_PASSWORD }}
+
+          VUE_APP_API_URL=http://${{ secrets.EC2_HOST }}:8000/api
+          VUE_APP_APP_NAME="Task Manager Pro"
+          FRONTEND_DOMAIN=${{ secrets.EC2_HOST }}
+
+          CACHE_DRIVER=redis
+          SESSION_DRIVER=redis
+          REDIS_HOST=redis
+          REDIS_PASSWORD=null
+          REDIS_PORT=6379
+
+          QUEUE_CONNECTION=redis
+          SANCTUM_STATEFUL_DOMAINS=${{ secrets.EC2_HOST }}
+          SESSION_DOMAIN=${{ secrets.EC2_HOST }}
+
+          LOG_CHANNEL=stack
+          LOG_LEVEL=error
+          BROADCAST_DRIVER=log
+          FILESYSTEM_DISK=local
+          EOF
+          fi
+
+          # Copy backend environment
+          cp .env backend/.env
+
+          # Create nginx configuration for backend
+          cat > nginx/backend.conf << 'EOF'
+          server {
+              listen 80;
+              server_name _;
+              root /var/www/public;
+
+              add_header X-Frame-Options "SAMEORIGIN";
+              add_header X-Content-Type-Options "nosniff";
+              add_header 'Access-Control-Allow-Origin' '*' always;
+              add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+              add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+              add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range' always;
+
+              index index.php;
+              charset utf-8;
+
+              location / {
+                  if ($request_method = 'OPTIONS') {
+                      add_header 'Access-Control-Allow-Origin' '*';
+                      add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
+                      add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization';
+                      add_header 'Access-Control-Max-Age' 1728000;
+                      add_header 'Content-Type' 'text/plain; charset=utf-8';
+                      add_header 'Content-Length' 0;
+                      return 204;
+                  }
+                  try_files $uri $uri/ /index.php?$query_string;
+              }
+
+              location = /favicon.ico { access_log off; log_not_found off; }
+              location = /robots.txt  { access_log off; log_not_found off; }
+              error_page 404 /index.php;
+
+              location ~ \.php$ {
+                  fastcgi_pass laravel:9000;
+                  fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+                  include fastcgi_params;
+                  fastcgi_hide_header X-Powered-By;
+              }
+
+              location ~ /\.(?!well-known).* {
+                  deny all;
+              }
+
+              add_header X-XSS-Protection "1; mode=block";
+              add_header Referrer-Policy "strict-origin-when-cross-origin";
+          }
+          EOF
+
+          # Create frontend nginx configuration
+          cat > frontend/nginx.conf << 'EOF'
+          user nginx;
+          worker_processes auto;
+          error_log /var/log/nginx/error.log warn;
+          pid /var/run/nginx.pid;
+
+          events {
+              worker_connections 1024;
+          }
+
+          http {
+              include /etc/nginx/mime.types;
+              default_type application/octet-stream;
+              log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                              '$status $body_bytes_sent "$http_referer" '
+                              '"$http_user_agent" "$http_x_forwarded_for"';
+              access_log /var/log/nginx/access.log main;
+              sendfile on;
+              tcp_nopush on;
+              tcp_nodelay on;
+              keepalive_timeout 65;
+              types_hash_max_size 2048;
+              client_max_body_size 100M;
+              gzip on;
+              gzip_vary on;
+              gzip_min_length 1024;
+              gzip_proxied any;
+              gzip_comp_level 6;
+              gzip_types text/plain text/css text/xml text/javascript text/json application/json application/javascript application/xml+rss application/atom+xml image/svg+xml;
+
+              server {
+                  listen 80;
+                  server_name _;
+                  root /usr/share/nginx/html;
+                  index index.html index.htm;
+                  add_header X-Frame-Options "SAMEORIGIN" always;
+                  add_header X-Content-Type-Options "nosniff" always;
+                  add_header X-XSS-Protection "1; mode=block" always;
+                  add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+                  location / {
+                      try_files $uri $uri/ /index.html;
+                  }
+
+                  location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+                      expires 1y;
+                      add_header Cache-Control "public, immutable";
+                      access_log off;
+                  }
+
+                  location ~* \.html$ {
+                      expires 1h;
+                      add_header Cache-Control "public";
+                  }
+
+                  location /health {
+                      access_log off;
+                      return 200 "healthy\n";
+                      add_header Content-Type text/plain;
+                  }
+
+                  location ~ /\. {
+                      deny all;
+                      access_log off;
+                      log_not_found off;
+                  }
+
+                  error_page 404 /index.html;
+              }
+          }
+          EOF
+
+          # Create frontend production Dockerfile
+          cat > frontend/Dockerfile.prod << 'EOF'
+          FROM node:18-alpine as build-stage
+          WORKDIR /app
+          COPY package*.json ./
+          RUN npm ci --only=production
+          COPY . .
+          ARG VUE_APP_API_URL
+          ARG VUE_APP_APP_NAME
+          ENV VUE_APP_API_URL=$VUE_APP_API_URL
+          ENV VUE_APP_APP_NAME=$VUE_APP_APP_NAME
+          RUN npm run build
+
+          FROM nginx:alpine as production-stage
+          RUN apk add --no-cache curl
+          COPY --from=build-stage /app/dist /usr/share/nginx/html
+          COPY nginx.conf /etc/nginx/nginx.conf
+          RUN mkdir -p /var/cache/nginx/client_temp && \
+              mkdir -p /var/cache/nginx/proxy_temp && \
+              mkdir -p /var/cache/nginx/fastcgi_temp && \
+              mkdir -p /var/cache/nginx/uwsgi_temp && \
+              mkdir -p /var/cache/nginx/scgi_temp
+          RUN chown -R nginx:nginx /var/cache/nginx && \
+              chown -R nginx:nginx /usr/share/nginx/html && \
+              chmod -R 755 /usr/share/nginx/html
+          EXPOSE 80 443
+          HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+              CMD curl -f http://localhost/ || exit 1
+          CMD ["nginx", "-g", "daemon off;"]
+          EOF
+
+          # Clean up Docker resources
+          echo "🧹 Cleaning up Docker resources..."
+          docker system prune -f || true
+
+          # Build and start containers
+          echo "🔨 Building and starting containers..."
+          docker-compose up -d --build
+
+          # Wait for services to be ready
+          echo "⏳ Waiting for services to be ready..."
+          sleep 60
+
+          # Check if MySQL is ready
+          echo "🔍 Checking MySQL connection..."
+          timeout 300 bash -c 'until docker-compose exec -T mysql mysqladmin ping --silent; do sleep 5; done'
+
+          # Run Laravel setup commands
+          echo "🔧 Setting up Laravel application..."
+          docker-compose exec -T laravel php artisan migrate --force || echo "Migration failed"
+          docker-compose exec -T laravel php artisan config:cache || echo "Config cache failed"
+          docker-compose exec -T laravel php artisan route:cache || echo "Route cache failed"
+          docker-compose exec -T laravel php artisan view:cache || echo "View cache failed"
+
+          # Set proper permissions
+          docker-compose exec -T laravel chown -R www-data:www-data /var/www/storage || echo "Permission setup failed"
+          docker-compose exec -T laravel chmod -R 775 /var/www/storage || echo "Permission setup failed"
+          docker-compose exec -T laravel chmod -R 775 /var/www/bootstrap/cache || echo "Permission setup failed"
+
+          # Check service status
+          echo "📊 Service Status:"
+          docker-compose ps
+
+          # Test API health
+          echo "🩺 Testing API health..."
+          sleep 10
+          curl -f http://localhost:8000/api/health || echo "API health check failed"
+
+          # Test frontend
+          echo "🩺 Testing frontend..."
+          curl -f http://localhost/ || echo "Frontend health check failed"
+
+          echo "✅ Deployment completed successfully!"
+          echo "🌐 Frontend: http://${{ secrets.EC2_HOST }}"
+          echo "🔗 Backend API: http://${{ secrets.EC2_HOST }}:8000/api"
