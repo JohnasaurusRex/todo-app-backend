@@ -1,66 +1,298 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Task Manager Pro - Backend (Laravel API)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A robust Laravel API backend for the Task Manager Pro application, featuring JWT authentication, RESTful endpoints, and comprehensive task management functionality.
 
-## About Laravel
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### 🔐 Authentication System
+- JWT-based authentication with php-open-source-saver/jwt-auth
+- Secure user registration and login
+- Token refresh and logout functionality
+- Password hashing and validation
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 📋 Task Management API
+- Full CRUD operations for tasks
+- Task categorization and prioritization
+- Due date tracking and overdue detection
+- Task completion status management
+- Advanced filtering and search capabilities
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 🏷️ Category Management
+- Custom category creation with colors
+- Category-based task organization
+- Category statistics and task counts
 
-## Learning Laravel
+### 🛡️ Security Features
+- CORS configuration for frontend integration
+- Request validation and sanitization
+- User-specific data isolation
+- Secure API endpoints with middleware protection
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Technology Stack
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+- **Laravel 9**: PHP framework for robust API development
+- **MySQL 8.0+**: Reliable database for data persistence
+- **JWT Authentication**: Secure token-based authentication
+- **php-open-source-saver/jwt-auth**: JWT implementation for Laravel
+- **fruitcake/laravel-cors**: CORS handling
+- **RESTful API Design**: Clean, standardized API endpoints
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 2000 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Prerequisites
 
-## Laravel Sponsors
+- PHP 8.0.2 or higher
+- Composer
+- MySQL 8.0 or higher
+- Web server (Apache/Nginx) for production
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+## Installation & Setup
 
-### Premium Partners
+### 1. Clone Repository
+```bash
+git clone <repository-url>
+cd todo-app/backend
+```
 
-- **[Vehikl](https://vehikl.com/)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Cubet Techno Labs](https://cubettech.com)**
-- **[Cyber-Duck](https://cyber-duck.co.uk)**
-- **[Many](https://www.many.co.uk)**
-- **[Webdock, Fast VPS Hosting](https://www.webdock.io/en)**
-- **[DevSquad](https://devsquad.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel/)**
-- **[OP.GG](https://op.gg)**
-- **[WebReinvent](https://webreinvent.com/?utm_source=laravel&utm_medium=github&utm_campaign=patreon-sponsors)**
-- **[Lendio](https://lendio.com)**
+### 2. Install Dependencies
+```bash
+composer install
+```
 
-## Contributing
+### 3. Environment Configuration
+```bash
+# Copy environment file
+cp .env.example .env
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# Generate application key
+php artisan key:generate
 
-## Code of Conduct
+# Publish and configure JWT
+php artisan vendor:publish --provider="PHPOpenSourceSaver\JWTAuth\Providers\LaravelServiceProvider"
+php artisan jwt:secret
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 4. Database Setup
+```bash
+# Create database
+mysql -u root -p -e "CREATE DATABASE todo_app;"
 
-## Security Vulnerabilities
+# Configure .env file with your database credentials
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Edit `.env` file:
+```env
+APP_NAME="Task Manager Pro API"
+APP_ENV=local
+APP_DEBUG=true
+APP_URL=http://localhost:8000
 
-## License
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=todo_app
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+JWT_SECRET=your_jwt_secret_here
+JWT_TTL=60
+JWT_REFRESH_TTL=20160
+```
+
+### 5. Run Migrations
+```bash
+# Run database migrations
+php artisan migrate
+
+# Optional: Seed with sample data
+php artisan db:seed
+```
+
+### 6. Start Development Server
+```bash
+# Start Laravel development server
+php artisan serve
+
+# API will be available at http://localhost:8000
+```
+
+## API Documentation
+
+### Base URL
+```
+http://localhost:8000/api
+```
+
+### Authentication Endpoints
+
+#### Register User
+```http
+POST /api/auth/register
+Content-Type: application/json
+
+{
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "password123",
+  "password_confirmation": "password123"
+}
+```
+
+#### Login User
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "john@example.com",
+  "password": "password123"
+}
+```
+
+#### Get Current User
+```http
+GET /api/auth/me
+Authorization: Bearer {token}
+```
+
+#### Refresh Token
+```http
+POST /api/auth/refresh
+Authorization: Bearer {token}
+```
+
+#### Logout
+```http
+POST /api/auth/logout
+Authorization: Bearer {token}
+```
+
+### Task Endpoints
+
+#### Get All Tasks
+```http
+GET /api/tasks
+Authorization: Bearer {token}
+
+# With filters
+GET /api/tasks?search=meeting&status=pending&priority=high&category_id=1
+```
+
+#### Create Task
+```http
+POST /api/tasks
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "title": "Complete project proposal",
+  "description": "Finish the Q1 project proposal and send to client",
+  "priority": "high",
+  "due_date": "2024-12-31T23:59:59",
+  "category_id": 1
+}
+```
+
+#### Update Task
+```http
+PUT /api/tasks/{id}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "title": "Updated task title",
+  "is_completed": true
+}
+```
+
+#### Delete Task
+```http
+DELETE /api/tasks/{id}
+Authorization: Bearer {token}
+```
+
+#### Toggle Task Completion
+```http
+PATCH /api/tasks/{id}/toggle
+Authorization: Bearer {token}
+```
+
+### Category Endpoints
+
+#### Get All Categories
+```http
+GET /api/categories
+Authorization: Bearer {token}
+```
+
+#### Create Category
+```http
+POST /api/categories
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "name": "Work Projects",
+  "color": "#3B82F6"
+}
+```
+
+#### Update Category
+```http
+PUT /api/categories/{id}
+Authorization: Bearer {token}
+Content-Type: application/json
+
+{
+  "name": "Personal Tasks",
+  "color": "#10B981"
+}
+```
+
+#### Delete Category
+```http
+DELETE /api/categories/{id}
+Authorization: Bearer {token}
+```
+
+## Architecture Patterns
+
+### Repository Pattern
+- Abstract data access layer
+- Interface-based contracts
+- Dependency injection for loose coupling
+
+### Service Layer
+- Business logic separation
+- Reusable business operations
+- Clean controller methods
+
+### Request Validation
+- Form request classes for input validation
+- Centralized validation rules
+- Automatic error responses
+
+## Database Schema
+
+### Users Table
+- id (primary key)
+- name (string)
+- email (unique string)
+- password (hashed string)
+- timestamps
+
+### Categories Table
+- id (primary key)
+- name (string)
+- color (string, hex color)
+- user_id (foreign key)
+- timestamps
+
+### Tasks Table
+- id (primary key)
+- title (string)
+- description (text, nullable)
+- is_completed (boolean, default false)
+- due_date (timestamp, nullable)
+- priority (enum: low, medium, high)
+- user_id (foreign key)
+- category_id (foreign key, nullable)
+- timestamps

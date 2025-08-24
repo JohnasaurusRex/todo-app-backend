@@ -52,7 +52,11 @@ class AuthController extends Controller
 
     public function me(): JsonResponse
     {
-    return response()->json(auth('sanctum')->user());
+        $user = auth('sanctum')->user();
+        if (!$user) {
+            return response()->json(['error' => 'Unauthenticated'], 401);
+        }
+        return response()->json($user);
     }
 
     public function refresh(): JsonResponse
